@@ -1,0 +1,5 @@
+mutex-comparison
+=================
+The goal is count how many 'a', 'b', ... 'j' are in a random matrix of M*N-
+The result in a std::vector where vector[0] indicates the number of
+'a', vector[2] 'b' and so on.

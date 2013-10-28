@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstring>
 #include <vector>
 #include <thread>
 #include <mutex>
@@ -19,7 +20,7 @@ void what_is_he_doing(int pos, int action, int new_state)
   else
     std::cout << "thinking...";
   if (!action)
-    std::cout << "....\n";
+    std::cout << ".......\n";
   else if (new_state)
     std::cout << "...interrupt.\n";
   else
@@ -43,6 +44,7 @@ void phylosopher_thread(int pos, int* friends, int doing, int new_state)
 void waiter()
 {
   int* phylosophers = new int[5];
+  std::memset(phylosophers, 0, 5*sizeof(int));
   int pos = 0;
   unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();  
   std::default_random_engine generator (seed);                                  
@@ -52,26 +54,27 @@ void waiter()
     int eat = distribution(generator);
     if (eat)
     {
-      int action = distribution(generator);
+      int state = distribution(generator);
       int other = (pos + 2) % 5;
-      int n1 = distribution(generator);
-      int n2 = distribution(generator);
-      if (!action)
+      int rand1 = distribution(generator);
+      int rand2 = distribution(generator);
+      if (!state)
         other = (other+1) % 5;
-      std::thread ph1(phylosopher_thread, pos, phylosophers, eat, n1);
-      std::thread ph2(phylosopher_thread, other, phylosophers, action, n2);
+      std::thread ph1(phylosopher_thread, pos, phylosophers, eat, rand1);
+      std::thread ph2(phylosopher_thread, other, phylosophers, state, rand2);
       std::mutex mtx;
       std::unique_lock<std::mutex> lck(mtx);
       cv.wait_for(lck,std::chrono::seconds(1));
       ph1.join();
       ph2.join();
-      std::cout << "\n\n";
+      std::cout << "\n";
     }
     if (pos < 5)
       ++pos;
     else
       pos = 0;
   }
+  delete[] phylosophers;
 }
  
 int main()

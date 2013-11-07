@@ -11,29 +11,31 @@
 std::mutex mtx;
 
 template <typename T>
-void fill_random(std::vector<T>* v, int columns, T from, T to);
+void fill_random(T* v, int columns, T from, T to, T end_of_row);
 
 template <typename T>
-void print(std::vector<T>** matrix, int rows);
+void print(T** matrix, int rows, T end_of_row);
 
 template <typename T>
-std::vector<T>** create_matrix(int r, int min_c, int max_c, T from, T to);
+T** create_matrix(int r, int min_c, int max_c, T from, T to, T end_of_row);
 
 template <typename T>
 T** create_empty_matrix(int r, int c);
 
 struct counter
 {
-  std::vector<char>** matrix_;
+  char** matrix_;
   int* result_;
   int* current_;
   int stop_;
-  counter(std::vector<char>** m, int* result, int* current, int stop)
+  char end_of_row_;
+  counter(char** m, int* result, int* current, int stop, char e_o_r)
   {
     matrix_ = m;
     result_ = result;
     current_ = current;
     stop_ = stop;
+    end_of_row_ = e_o_r;
   }
   void operator() ()
   {
@@ -45,16 +47,15 @@ struct counter
       mtx.unlock();
       if (row >= stop_)
         return;
-      std::vector<char>::iterator it;
-      for (it = matrix_[row]->begin(); it != matrix_[row]->end(); ++it)
-        if (((*it) >= 'a') && ((*it) <= 'j'))
-          ++result_[(*it) - 'a'];
+      for (int j = 0; matrix_[row][j] != end_of_row_; ++j)
+        if ((matrix_[row][j] >= 'a') && (matrix_[row][j] <= 'j'))
+          ++result_[matrix_[row][j] - 'a'];
     } 
   }
 };
 
 
-std::vector<int> share(std::vector<char>** matrix, int rows)
+std::vector<int> share(char** matrix, int rows, char end_of_row)
 {
   using namespace std;
   chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
@@ -64,7 +65,7 @@ std::vector<int> share(std::vector<char>** matrix, int rows)
   int* current_row = new int(0); 
   for (int i = 0; i < nthreads; ++i)
     threads.push_back(thread( counter(matrix, result[i], 
-                                           current_row, rows) ));
+                              current_row, rows, end_of_row) ));
   for (auto& th : threads)
     th.join();
   for (int j = 1; j < nthreads; ++j)
@@ -80,16 +81,16 @@ std::vector<int> share(std::vector<char>** matrix, int rows)
   return sum;
 }
 
-std::vector<int> no_threads(std::vector<char>** matrix, int rows)
+std::vector<int> no_threads(char** matrix, int rows, char end_of_row)
 {
   using namespace std;
   chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
-  vector<int> result({0,0,0,0,0,0,0,0,0,0});                               
-  for (int i = 0; i < rows; ++i)                                                
-    for (auto& current : (*matrix[i]))
-    {                                                                           
-      if ((current >= 'a') && (current <= 'j'))                                 
-        ++result[current - 'a'];                                                
+  vector<int> result({0,0,0,0,0,0,0,0,0,0});       
+  for (int i = 0; i < rows; ++i)
+    for (int j = 0; matrix[i][j] != end_of_row; ++j)
+    {
+      if ((matrix[i][j] >= 'a') && (matrix[i][j] <= 'j'))
+        ++result[matrix[i][j] - 'a'];
     }
   chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
   cout <<"It took me " ;
@@ -101,17 +102,17 @@ std::vector<int> no_threads(std::vector<char>** matrix, int rows)
 int main()
 {
   int rows = 66;
-  int min_columns = 666;
+  int min_columns = 66;
   int max_columns = 999999;
   Debug("Create matrix");
-  std::vector<char>** test = NULL;
-  test =  create_matrix<char> (rows, min_columns, max_columns, 'a', 'z');
+  char** test = NULL;
+  test =  create_matrix<char> (rows, min_columns, max_columns, 'a', 'z', '\0');
   Debug("Result using threads");
-  std::vector<int> result = share(test, rows);
+  std::vector<int> result = share(test, rows, '\0');
   for (auto& i : result)
     Debug( i );
   Debug("Result no-threads");
-  std::vector<int> result2 = no_threads(test, rows);
+  std::vector<int> result2 = no_threads(test, rows, '\0');
   for (auto& i : result2)
     Debug( i );
   for (int i = 0; i < rows; ++i)
@@ -121,39 +122,40 @@ int main()
 }
 
 template <typename T>
-void fill_random(std::vector<T>* v, int columns, T from, T to)
+void fill_random(T* v, int columns, T from, T to, T end_of_row)
 {
   unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
   std::default_random_engine generator (seed);
   std::uniform_int_distribution<T> distribution(from, to);
-  for (int i = 0; i < columns; ++i)
-    v->push_back(distribution(generator));
+  for (int i = 0; i < (columns-1); ++i)
+    v[i] = distribution(generator);
+  v[columns - 1] = end_of_row;
 }
 
 template <typename T>
-void print(std::vector<T>** matrix, int rows)
+void print(T** matrix, int rows, T end_of_row)
 {
   for (int i = 0; i < rows; ++i)
   {
-    typename std::vector<T>::iterator j;
-    for (j = (*matrix[i]).begin(); j != (*matrix[i]).end(); ++j)
-      std::cout << (*j) << ' ';      
+    for (int j = 0; matrix[i][j] != end_of_row; ++j)
+      std::cout << matrix[i][j] << ' ';      
     std::cout << std::endl;
   }
 }
 
 template <typename T>
-std::vector<T>** create_matrix(int r, int min_c, int max_c, T from, T to)
+T** create_matrix(int r, int min_c, int max_c, T from, T to, T end_of_row)
 {
   unsigned seed;
   seed = std::chrono::system_clock::now().time_since_epoch().count();
   std::default_random_engine generator(seed);
   std::uniform_int_distribution<int> distribution(min_c, max_c);
-  std::vector<T>** m = new std::vector<T>* [r];
+  T** m = new T* [r];
   for (int i = 0; i < r; ++i)
   {
-    m[i] = new std::vector<T>;
-    fill_random<T>(m[i], distribution(generator), from, to);
+    int columns = distribution(generator);
+    m[i] = new T [columns];
+    fill_random<T>(m[i], columns, from, to, end_of_row);
   }
   return m;
 }

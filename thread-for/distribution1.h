@@ -11,7 +11,7 @@ struct FO
     for (I it = begin_; it != end_; ++it)
     {
       P process;
-      process(it);
+      process(&(*it));
     }
   }
 };

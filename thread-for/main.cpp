@@ -4,8 +4,7 @@
 
 struct Process
 {
-  typedef std::vector<char>::iterator I;
-  void operator() (I it)
+  void operator() (char* it)
   {
     Debug(*it);
   }

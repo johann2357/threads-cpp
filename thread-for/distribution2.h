@@ -25,7 +25,7 @@ struct FO2
       if (proceed)
       {
         P process;
-        process(current_);
+        process(&(*current_));
       }
     }
   }

@@ -36,7 +36,7 @@ class List
 public:
   int size_;
   typedef ListIterator<T> iterator;
-  List(int limit)
+  List(int limit=0)
   {
     head_ = NULL;
     size_ = 0;
